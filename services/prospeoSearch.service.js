@@ -1,6 +1,6 @@
 import axios from "axios";
-import dotenv from "dotenv";
-dotenv.config();
+// import dotenv from "dotenv";
+// dotenv.config();
 
 const searchDecisionMakers = async (domains) => {
   if (!process.env.PROSPEO_API_KEY) {

@@ -1,8 +1,8 @@
 import axios from "axios";
-import dotenv from "dotenv";
-dotenv.config();
+// import dotenv from "dotenv";
+// dotenv.config();
 
-export async function enrichPeople(people) {
+const enrichPeople = async (people) => {
   if (!process.env.PROSPEO_API_KEY) {
     throw new Error("PROSPEO_API_KEY environment variable is not defined");
   }
@@ -18,8 +18,10 @@ export async function enrichPeople(people) {
   let totalNotMatched = 0;
   let totalInvalid = 0;
 
-  for (let i = 0; i < people.length; i += 50) {
-    const chunk = people.slice(i, i + 50);
+  for (let i = 0; i < people.length; i += 1) {
+    const chunk = people.slice(i, i + 1);
+
+    console.log(`[${i + 1}/${people.length}] ${people[i].fullName}`);
 
     try {
       const response = await axios.post(
@@ -27,7 +29,7 @@ export async function enrichPeople(people) {
         {
           only_verified_email: true,
           data: chunk.map((person) => ({
-            identifier: person.personId,
+            identifier: `prospect_${person.personId}`,
             person_id: person.personId,
           })),
         },
@@ -36,31 +38,41 @@ export async function enrichPeople(people) {
             "X-KEY": process.env.PROSPEO_API_KEY,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       const data = response.data;
 
       if (data?.error) {
         const errorCode = data.error_code;
+        if (errorCode === "NO_MATCH") {
+          totalNotMatched += 1;
+          console.log(`[NO_MATCH] ${people[i].fullName || people[i].personId}`);
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+          continue;
+        }
+        console.log("STATUS:", error.response?.status);
         if (errorCode === "INSUFFICIENT_CREDITS") {
           throw new Error(
-            "Prospeo API Error: INSUFFICIENT_CREDITS - Insufficient credits remaining in your account."
+            "Prospeo API Error: INSUFFICIENT_CREDITS - Insufficient credits remaining in your account.",
           );
         }
         if (errorCode === "INVALID_API_KEY") {
           throw new Error(
-            "Prospeo API Error: INVALID_API_KEY - Invalid API key, check your X-KEY header."
+            "Prospeo API Error: INVALID_API_KEY - Invalid API key, check your X-KEY header.",
           );
         }
-        if (errorCode === "RATE_LIMITED" || errorCode === "Rate limit exceeded") {
+        if (
+          errorCode === "RATE_LIMITED" ||
+          errorCode === "Rate limit exceeded"
+        ) {
           throw new Error(
-            "Prospeo API Error: RATE_LIMITED - You hit the rate limit for your current plan."
+            "Prospeo API Error: RATE_LIMITED - You hit the rate limit for your current plan.",
           );
         }
         if (errorCode === "INVALID_REQUEST") {
           throw new Error(
-            "Prospeo API Error: INVALID_REQUEST - The request submitted is invalid."
+            "Prospeo API Error: INVALID_REQUEST - The request submitted is invalid.",
           );
         }
         throw new Error(`Prospeo API Error: ${errorCode}`);
@@ -90,18 +102,26 @@ export async function enrichPeople(people) {
         .filter((item) => item !== null && item.personId);
 
       allMatched.push(...mapped);
+      await new Promise((resolve) => setTimeout(resolve, 1200));
     } catch (error) {
       const data = error.response?.data;
       const errorCode = data?.error_code;
 
+      if (errorCode === "NO_MATCH") {
+        totalNotMatched += 1;
+        console.log(`[NO_MATCH] ${people[i].fullName || people[i].personId}`);
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        continue;
+      }
+
       if (errorCode === "INSUFFICIENT_CREDITS") {
         throw new Error(
-          "Prospeo API Error: INSUFFICIENT_CREDITS - Insufficient credits remaining in your account."
+          "Prospeo API Error: INSUFFICIENT_CREDITS - Insufficient credits remaining in your account.",
         );
       }
       if (errorCode === "INVALID_API_KEY") {
         throw new Error(
-          "Prospeo API Error: INVALID_API_KEY - Invalid API key, check your X-KEY header."
+          "Prospeo API Error: INVALID_API_KEY - Invalid API key, check your X-KEY header.",
         );
       }
       if (
@@ -110,12 +130,12 @@ export async function enrichPeople(people) {
         error.response?.status === 429
       ) {
         throw new Error(
-          "Prospeo API Error: RATE_LIMITED - You hit the rate limit for your current plan."
+          "Prospeo API Error: RATE_LIMITED - You hit the rate limit for your current plan.",
         );
       }
       if (errorCode === "INVALID_REQUEST") {
         throw new Error(
-          "Prospeo API Error: INVALID_REQUEST - The request submitted is invalid."
+          "Prospeo API Error: INVALID_REQUEST - The request submitted is invalid.",
         );
       }
 
@@ -128,4 +148,6 @@ export async function enrichPeople(people) {
   console.log(`Invalid: ${totalInvalid}`);
 
   return allMatched;
-}
+};
+
+export default enrichPeople;
