@@ -44,7 +44,7 @@ const runPipeline = async (seed_domain) => {
     ...new Map(decisionMakers.map((p) => [p.personId, p])).values(),
   ];
   console.log(`Enriching ${uniqueDecisionMakers.length} prospects`);
-  const inlimitBatch = uniqueDecisionMakers.slice(0, 2);
+  const inlimitBatch = uniqueDecisionMakers.slice(0, 5);
 
   console.log(`Using ${inlimitBatch.length} people for enrichment`);
   const enrichedPeople = await enrichPeople(inlimitBatch);
